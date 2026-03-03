@@ -1,0 +1,101 @@
+---
+title: "Demonstrate imputeTestbench on a naturally occurring time series."
+author: "Arush Banerjee"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#### Reference: https://cran.r-project.org/web/packages/imputeTestbench/imputeTestbench.pdf
+
+
+## 1. Choice of Dataset
+ I have chosen DAX(German Stock Market Index) from the EuStockMarkets dataset for this test.
+
+The EuStockMarkets dataset is a matrix containing the DAX (Germany), SMI (Switzerland), CAC (France), and FTSE (UK) containing data from January 1, 1991, to February 16, 1998.
+
+I chose this dataset as it satisfies the requirements of the easy test (univariate by choosing the DAX), and in the future can also be used for multivariate imputation. 
+
+This dataset has **high sampling frequency** and is **stochastic in the short term and compounding in the long term** unlike datasets on seasonal data like temp making it ideal for our use case.
+
+
+
+
+## 2. Importing and Plotting the Original Data
+
+```{r}
+
+library(imputeTestbench)
+
+
+data("EuStockMarkets")
+dax_ts <- EuStockMarkets[, "DAX"]  #taking the dax time series from the dataset
+
+plot(dax_ts, 
+     main= "Original DAX Time Series", 
+     xlab="Year",
+     ylab="Index Value(in Deutsche Mark)",
+     col="green")
+
+```
+
+
+This graph is **approximately of exponential type** showing the continued growth of German stock market in these years but also the economic crisis such as of 1997.
+
+
+
+
+## 3. Demonstrating the imputeTestbench package
+
+
+We will apply three different methods of imputation ("na_mean", "na_interpolation" and "na.locf") on the dataset and compare their accuracy.
+
+```{r}
+results <- impute_errors(
+  dataIn= dax_ts,
+  methods = c("na_interpolation", "na.locf", "na_mean"),
+  errorParameter = "rmse", #Gives Root Mean Square Error
+  missPercentFrom = 10,
+  missPercentTo = 90, 
+  interval = 10, #Taking Miss Percent from 10 to 90 at an interval of 10 
+  repetition = 10
+)
+
+print(results)
+```
+
+
+## 4. Plotting the  errors of different methods
+
+
+```{r}
+plot_errors(results, plotType = 'bar')
+```
+
+
+## 5. Plotting the imputations of different methods at 50% missing data
+
+```{r}
+plot_impute(dataIn = dax_ts,
+            methods= c("na_interpolation", "na.locf", "na_mean"),
+            missPercent = 50,
+            showmiss = TRUE
+)
+```
+
+
+## 6. Observations from the Plots of errors
+
+**Mean Imputation** consistently has the **highest error** because it ignores the time-dependent nature of stock prices.
+
+**LOCF and Interpolation** perform similarly on this dataset, but as missingness increases, the gaps become wider, and **Linear Interpolation outperformed LOCF** because it utilizes the future's information as well for the gap. 
+
+In a real-world trading bot, you cannot use interpolation because you don't know tomorrow's price yet. You are forced to use LOCF.
+
+## 7. Future Scope
+
+As the different EU stock markets are highly interrelated, thus a bear market in one index gives a high probability that the other markets will also be bearish.
+
+Thus in the future, this dataset can be used for the multivariate time series implementation of imputeTestbench.
